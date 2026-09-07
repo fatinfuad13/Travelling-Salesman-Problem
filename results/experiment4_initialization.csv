@@ -1,0 +1,3 @@
+Instance,Cities,Runs,Initial Temperature,Cooling Rate,Initialization,Average Initial Cost,Best Cost,Average Cost,Worst Cost,Average Accepted Moves,Average Worse Moves Accepted,Average Iterations,Average Time (s)
+test_050.txt,50,5,100,0.995,Random,23872.6,2371,2464.2,2597,860.2,349.4,100000.0,0.639584
+test_050.txt,50,5,100,0.995,Greedy,4049.0,2427,2521.8,2618,763.4,329.8,100000.0,0.626595
