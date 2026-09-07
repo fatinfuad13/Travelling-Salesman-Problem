@@ -16,10 +16,10 @@ SA_SEEDS = [1, 2, 3, 4, 5]
 INITIAL_TEMPERATURES = [100, 1000, 5000]
 COOLING_RATES = [0.90, 0.95, 0.995]
 INITIAL_METHODS = ["random", "greedy"]
-EXPERIMENT_CITIES = 50
 TUNING_INITIALIZATION = "greedy"
 SELECTED_INITIAL_TEMPERATURE = 100
 SELECTED_COOLING_RATE = 0.995
+SELECTED_INITIALIZATION = "random"
 
 
 def generateCostMatrix(numberOfCities, seed):
@@ -76,7 +76,9 @@ def runExperiment1():
             saResult = simulatedAnnealing(
                 numberOfCities,
                 costMatrix,
-                initialMethod="greedy",
+                initialTemperature=SELECTED_INITIAL_TEMPERATURE,
+                coolingRate=SELECTED_COOLING_RATE,
+                initialMethod=SELECTED_INITIALIZATION,
                 randomSeed=seed,
             )
             saTimes.append(time.perf_counter() - startTime)
@@ -90,6 +92,10 @@ def runExperiment1():
             {
                 "Instance": f"Test {testNumber}",
                 "Cities": numberOfCities,
+                "Runs": len(SA_SEEDS),
+                "Initial Temperature": SELECTED_INITIAL_TEMPERATURE,
+                "Cooling Rate": SELECTED_COOLING_RATE,
+                "Initialization": SELECTED_INITIALIZATION.capitalize(),
                 "Greedy Cost": greedyCost,
                 "SA Best": saBest,
                 "SA Average": round(saAverage, 2),
@@ -110,7 +116,12 @@ def runExperiment1():
         writer.writerows(results)
 
     print("\nEXPERIMENT 1: GREEDY VS. SIMULATED ANNEALING")
-    print("SA initialization: Greedy | SA runs per instance: 5")
+    print(
+        f"SA configuration: T={SELECTED_INITIAL_TEMPERATURE} | "
+        f"Alpha={SELECTED_COOLING_RATE} | "
+        f"Initialization: {SELECTED_INITIALIZATION.capitalize()} | "
+        f"Runs per instance: {len(SA_SEEDS)}"
+    )
 
     for result in results:
         print(
@@ -127,56 +138,61 @@ def runExperiment1():
 
 
 def runExperiment2():
-    """Compare three SA initial temperatures on the 50-city instance."""
-    fileName = INPUT_FOLDER / f"test_{EXPERIMENT_CITIES:03}.txt"
-    numberOfCities, costMatrix = readInput(fileName)
-    _, initialCost = greedyTSP(numberOfCities, costMatrix)
+    """Compare three SA initial temperatures on all five instances."""
     results = []
 
-    for initialTemperature in INITIAL_TEMPERATURES:
-        runs = []
-        runTimes = []
+    for testNumber, cityCount in enumerate(CITY_COUNTS, start=1):
+        fileName = INPUT_FOLDER / f"test_{cityCount:03}.txt"
+        numberOfCities, costMatrix = readInput(fileName)
+        _, initialCost = greedyTSP(numberOfCities, costMatrix)
 
-        for seed in SA_SEEDS:
-            startTime = time.perf_counter()
-            result = simulatedAnnealing(
-                numberOfCities,
-                costMatrix,
-                initialTemperature=initialTemperature,
-                coolingRate=SELECTED_COOLING_RATE,
-                initialMethod=TUNING_INITIALIZATION,
-                randomSeed=seed,
+        for initialTemperature in INITIAL_TEMPERATURES:
+            runs = []
+            runTimes = []
+
+            for seed in SA_SEEDS:
+                startTime = time.perf_counter()
+                result = simulatedAnnealing(
+                    numberOfCities,
+                    costMatrix,
+                    initialTemperature=initialTemperature,
+                    coolingRate=SELECTED_COOLING_RATE,
+                    initialMethod=TUNING_INITIALIZATION,
+                    randomSeed=seed,
+                )
+                runTimes.append(time.perf_counter() - startTime)
+                runs.append(result)
+
+            costs = [run["bestCost"] for run in runs]
+            results.append(
+                {
+                    "Instance": f"Test {testNumber}",
+                    "Cities": numberOfCities,
+                    "Runs": len(SA_SEEDS),
+                    "Initial Temperature": initialTemperature,
+                    "Cooling Rate": SELECTED_COOLING_RATE,
+                    "Initialization": TUNING_INITIALIZATION.capitalize(),
+                    "Average Initial Cost": initialCost,
+                    "Best Cost": min(costs),
+                    "Average Cost": round(sum(costs) / len(costs), 2),
+                    "Worst Cost": max(costs),
+                    "Average Accepted Moves": round(
+                        sum(run["acceptedMoves"] for run in runs) / len(runs), 2
+                    ),
+                    "Average Worse Moves Accepted": round(
+                        sum(run["worseMovesAccepted"] for run in runs) / len(runs), 2
+                    ),
+                    "Average Iterations": round(
+                        sum(run["iterations"] for run in runs) / len(runs), 2
+                    ),
+                    "Average Time (s)": round(sum(runTimes) / len(runTimes), 6),
+                }
             )
-            runTimes.append(time.perf_counter() - startTime)
-            runs.append(result)
 
-        costs = [run["bestCost"] for run in runs]
-        results.append(
-            {
-                "Instance": fileName.name,
-                "Cities": numberOfCities,
-                "Runs": len(SA_SEEDS),
-                "Initial Temperature": initialTemperature,
-                "Cooling Rate": SELECTED_COOLING_RATE,
-                "Initialization": TUNING_INITIALIZATION.capitalize(),
-                "Average Initial Cost": initialCost,
-                "Best Cost": min(costs),
-                "Average Cost": round(sum(costs) / len(costs), 2),
-                "Worst Cost": max(costs),
-                "Average Accepted Moves": round(
-                    sum(run["acceptedMoves"] for run in runs) / len(runs), 2
-                ),
-                "Average Worse Moves Accepted": round(
-                    sum(run["worseMovesAccepted"] for run in runs) / len(runs), 2
-                ),
-                "Average Iterations": round(
-                    sum(run["iterations"] for run in runs) / len(runs), 2
-                ),
-                "Average Time (s)": round(sum(runTimes) / len(runTimes), 6),
-            }
-        )
-
-        print(f"Completed initial temperature {initialTemperature}")
+            print(
+                f"Completed {numberOfCities} cities, "
+                f"initial temperature {initialTemperature}"
+            )
 
     RESULTS_FOLDER.mkdir(exist_ok=True)
     resultFile = RESULTS_FOLDER / "experiment2_temperatures.csv"
@@ -188,7 +204,7 @@ def runExperiment2():
 
     print("\nEXPERIMENT 2: INITIAL TEMPERATURE")
     print(
-        f"Instance: {numberOfCities} cities | "
+        f"Instances: {CITY_COUNTS} cities | "
         f"Alpha={SELECTED_COOLING_RATE} | "
         f"Initialization: {TUNING_INITIALIZATION.capitalize()} | "
         f"Runs per value: {len(SA_SEEDS)}"
@@ -196,7 +212,7 @@ def runExperiment2():
 
     for result in results:
         print(
-            f"T={result['Initial Temperature']}: "
+            f"{result['Cities']} cities, T={result['Initial Temperature']}: "
             f"Best={result['Best Cost']}, "
             f"Average={result['Average Cost']}, "
             f"Worse moves accepted={result['Average Worse Moves Accepted']}, "
@@ -209,56 +225,61 @@ def runExperiment2():
 
 
 def runExperiment3():
-    """Compare three SA cooling rates on the 50-city instance."""
-    fileName = INPUT_FOLDER / f"test_{EXPERIMENT_CITIES:03}.txt"
-    numberOfCities, costMatrix = readInput(fileName)
-    _, initialCost = greedyTSP(numberOfCities, costMatrix)
+    """Compare three SA cooling rates on all five instances."""
     results = []
 
-    for coolingRate in COOLING_RATES:
-        runs = []
-        runTimes = []
+    for testNumber, cityCount in enumerate(CITY_COUNTS, start=1):
+        fileName = INPUT_FOLDER / f"test_{cityCount:03}.txt"
+        numberOfCities, costMatrix = readInput(fileName)
+        _, initialCost = greedyTSP(numberOfCities, costMatrix)
 
-        for seed in SA_SEEDS:
-            startTime = time.perf_counter()
-            result = simulatedAnnealing(
-                numberOfCities,
-                costMatrix,
-                initialTemperature=SELECTED_INITIAL_TEMPERATURE,
-                coolingRate=coolingRate,
-                initialMethod=TUNING_INITIALIZATION,
-                randomSeed=seed,
+        for coolingRate in COOLING_RATES:
+            runs = []
+            runTimes = []
+
+            for seed in SA_SEEDS:
+                startTime = time.perf_counter()
+                result = simulatedAnnealing(
+                    numberOfCities,
+                    costMatrix,
+                    initialTemperature=SELECTED_INITIAL_TEMPERATURE,
+                    coolingRate=coolingRate,
+                    initialMethod=TUNING_INITIALIZATION,
+                    randomSeed=seed,
+                )
+                runTimes.append(time.perf_counter() - startTime)
+                runs.append(result)
+
+            costs = [run["bestCost"] for run in runs]
+            results.append(
+                {
+                    "Instance": f"Test {testNumber}",
+                    "Cities": numberOfCities,
+                    "Runs": len(SA_SEEDS),
+                    "Initial Temperature": SELECTED_INITIAL_TEMPERATURE,
+                    "Cooling Rate": coolingRate,
+                    "Initialization": TUNING_INITIALIZATION.capitalize(),
+                    "Average Initial Cost": initialCost,
+                    "Best Cost": min(costs),
+                    "Average Cost": round(sum(costs) / len(costs), 2),
+                    "Worst Cost": max(costs),
+                    "Average Accepted Moves": round(
+                        sum(run["acceptedMoves"] for run in runs) / len(runs), 2
+                    ),
+                    "Average Worse Moves Accepted": round(
+                        sum(run["worseMovesAccepted"] for run in runs) / len(runs), 2
+                    ),
+                    "Average Iterations": round(
+                        sum(run["iterations"] for run in runs) / len(runs), 2
+                    ),
+                    "Average Time (s)": round(sum(runTimes) / len(runTimes), 6),
+                }
             )
-            runTimes.append(time.perf_counter() - startTime)
-            runs.append(result)
 
-        costs = [run["bestCost"] for run in runs]
-        results.append(
-            {
-                "Instance": fileName.name,
-                "Cities": numberOfCities,
-                "Runs": len(SA_SEEDS),
-                "Initial Temperature": SELECTED_INITIAL_TEMPERATURE,
-                "Cooling Rate": coolingRate,
-                "Initialization": TUNING_INITIALIZATION.capitalize(),
-                "Average Initial Cost": initialCost,
-                "Best Cost": min(costs),
-                "Average Cost": round(sum(costs) / len(costs), 2),
-                "Worst Cost": max(costs),
-                "Average Accepted Moves": round(
-                    sum(run["acceptedMoves"] for run in runs) / len(runs), 2
-                ),
-                "Average Worse Moves Accepted": round(
-                    sum(run["worseMovesAccepted"] for run in runs) / len(runs), 2
-                ),
-                "Average Iterations": round(
-                    sum(run["iterations"] for run in runs) / len(runs), 2
-                ),
-                "Average Time (s)": round(sum(runTimes) / len(runTimes), 6),
-            }
-        )
-
-        print(f"Completed cooling rate {coolingRate}")
+            print(
+                f"Completed {numberOfCities} cities, "
+                f"cooling rate {coolingRate}"
+            )
 
     RESULTS_FOLDER.mkdir(exist_ok=True)
     resultFile = RESULTS_FOLDER / "experiment3_cooling_rates.csv"
@@ -270,7 +291,7 @@ def runExperiment3():
 
     print("\nEXPERIMENT 3: COOLING RATE")
     print(
-        f"Instance: {numberOfCities} cities | "
+        f"Instances: {CITY_COUNTS} cities | "
         f"T={SELECTED_INITIAL_TEMPERATURE} | "
         f"Initialization: {TUNING_INITIALIZATION.capitalize()} | "
         f"Runs per value: {len(SA_SEEDS)}"
@@ -278,7 +299,7 @@ def runExperiment3():
 
     for result in results:
         print(
-            f"Alpha={result['Cooling Rate']}: "
+            f"{result['Cities']} cities, Alpha={result['Cooling Rate']}: "
             f"Best={result['Best Cost']}, "
             f"Average={result['Average Cost']}, "
             f"Iterations={result['Average Iterations']}, "
@@ -291,58 +312,63 @@ def runExperiment3():
 
 
 def runExperiment4():
-    """Compare Random and Greedy initialization on the 50-city instance."""
-    fileName = INPUT_FOLDER / f"test_{EXPERIMENT_CITIES:03}.txt"
-    numberOfCities, costMatrix = readInput(fileName)
+    """Compare Random and Greedy initialization on all five instances."""
     results = []
 
-    for initialMethod in INITIAL_METHODS:
-        runs = []
-        runTimes = []
+    for testNumber, cityCount in enumerate(CITY_COUNTS, start=1):
+        fileName = INPUT_FOLDER / f"test_{cityCount:03}.txt"
+        numberOfCities, costMatrix = readInput(fileName)
 
-        for seed in SA_SEEDS:
-            startTime = time.perf_counter()
-            result = simulatedAnnealing(
-                numberOfCities,
-                costMatrix,
-                initialTemperature=SELECTED_INITIAL_TEMPERATURE,
-                coolingRate=SELECTED_COOLING_RATE,
-                initialMethod=initialMethod,
-                randomSeed=seed,
+        for initialMethod in INITIAL_METHODS:
+            runs = []
+            runTimes = []
+
+            for seed in SA_SEEDS:
+                startTime = time.perf_counter()
+                result = simulatedAnnealing(
+                    numberOfCities,
+                    costMatrix,
+                    initialTemperature=SELECTED_INITIAL_TEMPERATURE,
+                    coolingRate=SELECTED_COOLING_RATE,
+                    initialMethod=initialMethod,
+                    randomSeed=seed,
+                )
+                runTimes.append(time.perf_counter() - startTime)
+                runs.append(result)
+
+            initialCosts = [run["initialCost"] for run in runs]
+            finalCosts = [run["bestCost"] for run in runs]
+            results.append(
+                {
+                    "Instance": f"Test {testNumber}",
+                    "Cities": numberOfCities,
+                    "Runs": len(SA_SEEDS),
+                    "Initial Temperature": SELECTED_INITIAL_TEMPERATURE,
+                    "Cooling Rate": SELECTED_COOLING_RATE,
+                    "Initialization": initialMethod.capitalize(),
+                    "Average Initial Cost": round(
+                        sum(initialCosts) / len(initialCosts), 2
+                    ),
+                    "Best Cost": min(finalCosts),
+                    "Average Cost": round(sum(finalCosts) / len(finalCosts), 2),
+                    "Worst Cost": max(finalCosts),
+                    "Average Accepted Moves": round(
+                        sum(run["acceptedMoves"] for run in runs) / len(runs), 2
+                    ),
+                    "Average Worse Moves Accepted": round(
+                        sum(run["worseMovesAccepted"] for run in runs) / len(runs), 2
+                    ),
+                    "Average Iterations": round(
+                        sum(run["iterations"] for run in runs) / len(runs), 2
+                    ),
+                    "Average Time (s)": round(sum(runTimes) / len(runTimes), 6),
+                }
             )
-            runTimes.append(time.perf_counter() - startTime)
-            runs.append(result)
 
-        initialCosts = [run["initialCost"] for run in runs]
-        finalCosts = [run["bestCost"] for run in runs]
-        results.append(
-            {
-                "Instance": fileName.name,
-                "Cities": numberOfCities,
-                "Runs": len(SA_SEEDS),
-                "Initial Temperature": SELECTED_INITIAL_TEMPERATURE,
-                "Cooling Rate": SELECTED_COOLING_RATE,
-                "Initialization": initialMethod.capitalize(),
-                "Average Initial Cost": round(
-                    sum(initialCosts) / len(initialCosts), 2
-                ),
-                "Best Cost": min(finalCosts),
-                "Average Cost": round(sum(finalCosts) / len(finalCosts), 2),
-                "Worst Cost": max(finalCosts),
-                "Average Accepted Moves": round(
-                    sum(run["acceptedMoves"] for run in runs) / len(runs), 2
-                ),
-                "Average Worse Moves Accepted": round(
-                    sum(run["worseMovesAccepted"] for run in runs) / len(runs), 2
-                ),
-                "Average Iterations": round(
-                    sum(run["iterations"] for run in runs) / len(runs), 2
-                ),
-                "Average Time (s)": round(sum(runTimes) / len(runTimes), 6),
-            }
-        )
-
-        print(f"Completed {initialMethod} initialization")
+            print(
+                f"Completed {numberOfCities} cities, "
+                f"{initialMethod} initialization"
+            )
 
     RESULTS_FOLDER.mkdir(exist_ok=True)
     resultFile = RESULTS_FOLDER / "experiment4_initialization.csv"
@@ -354,7 +380,7 @@ def runExperiment4():
 
     print("\nEXPERIMENT 4: INITIALIZATION METHOD")
     print(
-        f"Instance: {numberOfCities} cities | "
+        f"Instances: {CITY_COUNTS} cities | "
         f"T={SELECTED_INITIAL_TEMPERATURE} | "
         f"Alpha={SELECTED_COOLING_RATE} | "
         f"Runs per method: {len(SA_SEEDS)}"
@@ -362,7 +388,7 @@ def runExperiment4():
 
     for result in results:
         print(
-            f"{result['Initialization']}: "
+            f"{result['Cities']} cities, {result['Initialization']}: "
             f"Initial average={result['Average Initial Cost']}, "
             f"Best={result['Best Cost']}, "
             f"Final average={result['Average Cost']}, "

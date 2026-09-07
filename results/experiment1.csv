@@ -1,6 +1,6 @@
-Instance,Cities,Greedy Cost,SA Best,SA Average,Improvement (%),Greedy Time (s),SA Average Time (s)
-Test 1,10,1429,1311,1311.0,8.26,4.68e-05,0.39522
-Test 2,20,2430,1583,1601.0,34.86,5.366e-05,0.455914
-Test 3,50,4049,2363,2553.8,41.64,0.00015839,0.664556
-Test 4,100,4289,3525,3795.6,17.81,0.00060186,0.984117
-Test 5,200,6156,6137,6152.2,0.31,0.00216261,1.684615
+Instance,Cities,Runs,Initial Temperature,Cooling Rate,Initialization,Greedy Cost,SA Best,SA Average,Improvement (%),Greedy Time (s),SA Average Time (s)
+Test 1,10,5,100,0.995,Random,1429,1311,1311.0,8.26,4.02e-05,0.423053
+Test 2,20,5,100,0.995,Random,2430,1583,1614.0,34.86,6.372e-05,0.461524
+Test 3,50,5,100,0.995,Random,4049,2371,2464.2,41.44,0.00023771,0.640037
+Test 4,100,5,100,0.995,Random,4289,3216,3543.8,25.02,0.00056791,0.927474
+Test 5,200,5,100,0.995,Random,6156,5493,5689.8,10.77,0.00218903,1.547525
